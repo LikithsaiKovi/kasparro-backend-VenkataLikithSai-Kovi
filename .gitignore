@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+.pytest_cache/
+.venv/
+*.pyc
+
+# Environment
+.env
+
+# VS Code / editor
+.vscode/
+.idea/
+
+# Byte-compiled / coverage
+.coverage
+htmlcov/
+coverage.xml
+
+# Docker
+*.log
+dist/
+build/
+
