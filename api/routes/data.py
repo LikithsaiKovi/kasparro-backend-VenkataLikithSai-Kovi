@@ -15,7 +15,8 @@ router = APIRouter()
 async def list_data(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
-    source: Optional[str] = Query(None),
+    source: Optional[str] = Query(None, description="Filter by source: coinpaprika, coingecko, or csv"),
+    ticker: Optional[str] = Query(None, description="Filter by cryptocurrency ticker (e.g., BTC, ETH)"),
     start_date: Optional[datetime] = Query(None),
     end_date: Optional[datetime] = Query(None),
     db: AsyncSession = Depends(get_db),
@@ -25,6 +26,8 @@ async def list_data(
 
     if source:
         query = query.where(models.NormalizedRecord.source == source)
+    if ticker:
+        query = query.where(models.NormalizedRecord.ticker == ticker.upper())
     if start_date:
         query = query.where(models.NormalizedRecord.created_at >= start_date)
     if end_date:

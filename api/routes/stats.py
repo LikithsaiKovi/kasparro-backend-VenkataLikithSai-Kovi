@@ -37,3 +37,4 @@ async def stats(db: AsyncSession = Depends(get_db)):
         },
     }
 
+

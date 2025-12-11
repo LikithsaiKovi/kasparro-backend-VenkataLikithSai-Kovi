@@ -44,15 +44,25 @@ class FakeSession:
         return None
 
 
-def override_db():
+async def override_db():
+    from datetime import datetime
     session = FakeSession(
         rows=[
-            models.NormalizedRecord(id="api-1", title="Alpha", source="api", value=10.0, created_at=None, ingested_at=None)
+            models.NormalizedRecord(
+                id="coinpaprika_BTC",
+                ticker="BTC",
+                name="Bitcoin",
+                price_usd=45000.50,
+                market_cap_usd=880000000000.0,
+                volume_24h_usd=25000000000.0,
+                percent_change_24h=2.5,
+                source="coinpaprika",
+                created_at=datetime.utcnow(),
+                ingested_at=datetime.utcnow()
+            )
         ]
     )
-    async def _gen():
-        yield session
-    return _gen()
+    yield session
 
 
 app.dependency_overrides[deps.get_db] = override_db
@@ -71,4 +81,5 @@ def test_data_endpoint():
     body = resp.json()
     assert "data" in body
     assert body["pagination"]["returned"] >= 0
+
 

@@ -3,24 +3,86 @@ from typing import Dict
 from schemas.record import RawAPIItem, RawCSVItem, NormalizedRecord
 
 
+def normalize_ticker(symbol: str) -> str:
+    """
+    Normalize ticker symbol to uppercase and handle common variations.
+    Ensures ticker unification across different sources.
+    """
+    if not symbol:
+        return ""
+    # Convert to uppercase and strip whitespace
+    ticker = symbol.strip().upper()
+    return ticker
+
+
+def normalize_price(price: float) -> float:
+    """
+    Normalize price to 8 decimal places for consistency.
+    Handles price precision requirements.
+    """
+    if price is None:
+        return 0.0
+    # Round to 8 decimal places (standard for crypto prices)
+    return round(float(price), 8)
+
+
 def transform_api_record(payload: Dict) -> NormalizedRecord:
+    """
+    Transform raw API record (from CoinPaprika or CoinGecko) to normalized format.
+    Handles ticker unification and price precision.
+    """
     raw = RawAPIItem(**payload)
+    
+    # Normalize ticker symbol
+    ticker = normalize_ticker(raw.symbol)
+    
+    # Create unified ID: source_ticker (e.g., "coinpaprika_BTC")
+    unified_id = f"{raw.source_api}_{ticker}"
+    
+    # Normalize price
+    normalized_price = normalize_price(raw.price_usd)
+    
     return NormalizedRecord(
-        id=raw.id,
-        title=raw.title,
-        source="api",
-        value=raw.value,
+        id=unified_id,
+        ticker=ticker,
+        name=raw.name,
+        price_usd=normalized_price,
+        market_cap_usd=raw.market_cap_usd if raw.market_cap_usd else None,
+        volume_24h_usd=raw.volume_24h_usd if raw.volume_24h_usd else None,
+        percent_change_24h=raw.percent_change_24h if raw.percent_change_24h else None,
+        source=raw.source_api,
         created_at=raw.created_at,
+        ingested_at=datetime.utcnow(),
     )
 
 
 def transform_csv_record(payload: Dict) -> NormalizedRecord:
+    """
+    Transform raw CSV record to normalized format.
+    Handles ticker unification and price precision.
+    """
     raw = RawCSVItem(**payload)
+    
+    # Normalize ticker symbol
+    ticker = normalize_ticker(raw.symbol)
+    
+    # Create unified ID: csv_ticker (e.g., "csv_BTC")
+    unified_id = f"csv_{ticker}"
+    
+    # Normalize price
+    normalized_price = normalize_price(raw.price_usd)
+    
     return NormalizedRecord(
-        id=raw.id,
-        title=raw.description,
+        id=unified_id,
+        ticker=ticker,
+        name=raw.name if raw.name else raw.symbol,
+        price_usd=normalized_price,
+        market_cap_usd=raw.market_cap_usd if raw.market_cap_usd else None,
+        volume_24h_usd=raw.volume_24h_usd if raw.volume_24h_usd else None,
+        percent_change_24h=raw.percent_change_24h if raw.percent_change_24h else None,
         source="csv",
-        value=raw.amount,
         created_at=raw.created_at,
+        ingested_at=datetime.utcnow(),
     )
+
 

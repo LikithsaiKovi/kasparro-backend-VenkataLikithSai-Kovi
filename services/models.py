@@ -30,9 +30,13 @@ class NormalizedRecord(Base):
     __tablename__ = "normalized_records"
 
     id = Column(String, primary_key=True)
-    title = Column(String, nullable=False)
-    source = Column(String, nullable=False)
-    value = Column(Float, nullable=False)
+    ticker = Column(String, nullable=False, index=True)  # Unified ticker symbol (BTC, ETH, etc.)
+    name = Column(String, nullable=False)
+    price_usd = Column(Float, nullable=False)
+    market_cap_usd = Column(Float, nullable=True)
+    volume_24h_usd = Column(Float, nullable=True)
+    percent_change_24h = Column(Float, nullable=True)
+    source = Column(String, nullable=False, index=True)  # "coinpaprika", "coingecko", "csv"
     created_at = Column(DateTime, nullable=False)
     ingested_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
@@ -60,4 +64,5 @@ class ETLRun(Base):
     failed = Column(Integer, default=0)
     duration_ms = Column(Integer, nullable=True)
     __table_args__ = (UniqueConstraint("id", "source", name="uq_run"),)
+
 

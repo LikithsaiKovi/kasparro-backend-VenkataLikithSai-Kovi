@@ -19,3 +19,4 @@ async def trigger_etl(
     background_tasks.add_task(run_once)
     return {"status": "scheduled"}
 
+

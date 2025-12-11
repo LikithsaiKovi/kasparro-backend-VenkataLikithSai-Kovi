@@ -23,22 +23,30 @@ class DummySession:
         return None
 
 
-@pytest.mark.asyncio
-async def test_validation_failure_does_not_crash(monkeypatch):
-    # Force bad payload
-    async def bad_fetch(*args, **kwargs):
-        return [{"external_id": "bad"}]  # missing required fields
+def test_validation_failure_does_not_crash(monkeypatch):
+    async def _run():
+        # Force bad payload
+        async def bad_fetch(*args, **kwargs):
+            return [{"external_id": "bad"}]  # missing required fields
 
-    dummy = DummySession()
-    monkeypatch.setattr(runner, "fetch_api_records", bad_fetch)
+        dummy = DummySession()
+        monkeypatch.setattr(runner, "fetch_api_records", bad_fetch)
 
-    # ensure checkpoint stays None when no valid data
-    async def fake_update(session, source, last_id):
-        session.updated = last_id
-    monkeypatch.setattr(runner, "_update_checkpoint", fake_update)
+        # ensure checkpoint stays None when no valid data
+        async def fake_update(session, source, last_id):
+            session.updated = last_id
+        monkeypatch.setattr(runner, "_update_checkpoint", fake_update)
+        # bypass checkpoint lookup to avoid DB result shape
+        async def fake_get_checkpoint(session, source):
+            class _CP:
+                last_id = None
+            return _CP()
+        monkeypatch.setattr(runner, "_get_checkpoint", fake_get_checkpoint)
 
-    try:
-        await runner._ingest_api(dummy)  # noqa: SLF001
-    except Exception:
-        pytest.fail("ETL raised exception on bad payload")
+        try:
+            await runner._ingest_api(dummy)  # noqa: SLF001
+        except Exception:
+            pytest.fail("ETL raised exception on bad payload")
+
+    asyncio.run(_run())
 

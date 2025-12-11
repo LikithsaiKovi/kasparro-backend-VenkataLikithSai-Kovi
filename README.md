@@ -1,6 +1,6 @@
-# Kasparro Backend & ETL System
+# Kasparro Backend & ETL System - Cryptocurrency Data Pipeline
 
-A production-ready ETL pipeline and REST API built with FastAPI, async SQLAlchemy, and PostgreSQL. The system ingests data from multiple sources (API and CSV), stores raw data, performs schema normalization, and exposes queryable endpoints with comprehensive metadata and observability.
+A production-ready ETL pipeline and REST API built with FastAPI, async SQLAlchemy, and PostgreSQL. The system ingests cryptocurrency data from multiple sources (CoinPaprika API, CoinGecko API, and CSV), stores raw data, performs schema normalization with ticker unification and price precision handling, and exposes queryable endpoints with comprehensive metadata and observability.
 
 **Docker Hub Image:** `likithsai32/etl-assignment:latest`
 
@@ -28,7 +28,8 @@ A production-ready ETL pipeline and REST API built with FastAPI, async SQLAlchem
 ┌─────────────────────────────────────────────────────────────────┐
 │                        External Sources                          │
 │  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐        │
-│  │  API Source │    │ CSV Source  │    │Third Source │        │
+│  │CoinPaprika  │    │ CoinGecko   │    │ CSV Source  │        │
+│  │    API      │    │    API      │    │             │        │
 │  └──────┬──────┘    └──────┬──────┘    └──────┬──────┘        │
 └─────────┼──────────────────┼──────────────────┼────────────────┘
           │                  │                  │
@@ -145,12 +146,14 @@ Async SQLAlchemy + `asyncpg` + async HTTP clients maximize I/O concurrency.
 **Design Decision:** Abstract source interface allows adding new sources (S3, databases, webhooks) without touching core ETL logic.
 
 #### `ingestion/transform.py`
-**Schema mapping layer**
-- Converts raw source payloads to Pydantic models
-- Maps disparate schemas to unified `NormalizedRecord` format
+**Schema mapping layer with cryptocurrency-specific logic**
+- Converts raw source payloads (CoinPaprika, CoinGecko, CSV) to Pydantic models
+- Maps disparate schemas to unified `NormalizedRecord` format with crypto fields (ticker, price_usd, market_cap_usd, etc.)
+- Implements ticker unification (normalizes symbols to uppercase, handles variations)
+- Normalizes price precision to 8 decimal places
 - Validates data types, required fields, constraints
 
-**Design Decision:** Pydantic provides free validation + serialization. Explicit transform functions are easy to unit test.
+**Design Decision:** Pydantic provides free validation + serialization. Explicit transform functions with domain-specific logic (ticker unification, price precision) ensure data quality across sources.
 
 #### `api/routes/`
 **HTTP endpoints**
@@ -236,21 +239,27 @@ Stores original API payloads as-is.
 Similar to `raw_api_records` but for CSV sources.
 
 ### `normalized_records`
-Unified, queryable schema.
+Unified, queryable cryptocurrency schema.
 
-| Column       | Type      | Description                          |
-|--------------|-----------|--------------------------------------|
-| id           | STRING    | Primary key (source-specific ID)     |
-| title        | STRING    | Human-readable record name           |
-| source       | STRING    | Origin tag (api, csv, third)         |
-| value        | FLOAT     | Numeric metric                       |
-| created_at   | TIMESTAMP | Source record creation time          |
-| ingested_at  | TIMESTAMP | When normalized record was saved     |
+| Column              | Type      | Description                          |
+|---------------------|-----------|--------------------------------------|
+| id                  | STRING    | Primary key (source_ticker format, e.g., "coinpaprika_BTC") |
+| ticker              | STRING    | Unified cryptocurrency ticker symbol (e.g., "BTC", "ETH") |
+| name                | STRING    | Full cryptocurrency name (e.g., "Bitcoin") |
+| price_usd           | FLOAT     | Price in USD (normalized to 8 decimal places) |
+| market_cap_usd      | FLOAT     | Market capitalization in USD (nullable) |
+| volume_24h_usd      | FLOAT     | 24-hour trading volume in USD (nullable) |
+| percent_change_24h  | FLOAT     | 24-hour price change percentage (nullable) |
+| source              | STRING    | Origin tag (coinpaprika, coingecko, csv) |
+| created_at          | TIMESTAMP | Source record creation time          |
+| ingested_at         | TIMESTAMP | When normalized record was saved     |
 
 **Design:** 
-- `id` is primary key (assumes globally unique IDs per source)
-- `source` enables filtering by origin
-- Upserts update all fields on conflict (enables corrections)
+- `id` is primary key with format `{source}_{ticker}` (e.g., "coinpaprika_BTC", "coingecko_ETH")
+- `ticker` is indexed for efficient filtering by cryptocurrency symbol
+- `source` enables filtering by origin (coinpaprika, coingecko, csv)
+- Ticker unification ensures same cryptocurrency from different sources can be queried by common ticker
+- Upserts update all fields on conflict (enables price corrections)
 
 ### `etl_checkpoints`
 Tracks incremental processing state.
@@ -287,13 +296,14 @@ Audit log of ETL executions.
 ## API Endpoints
 
 ### `GET /data`
-**Query normalized records with filtering and pagination.**
+**Query normalized cryptocurrency records with filtering and pagination.**
 
 **Query Parameters:**
-- `source` (optional): Filter by origin (api, csv, third)
+- `source` (optional): Filter by origin (coinpaprika, coingecko, csv)
+- `ticker` (optional): Filter by cryptocurrency ticker symbol (e.g., BTC, ETH)
 - `start_date` (optional): Filter records created after this date (ISO 8601)
 - `end_date` (optional): Filter records created before this date (ISO 8601)
-- `limit` (default: 100, max: 1000): Records per page
+- `limit` (default: 50, max: 200): Records per page
 - `offset` (default: 0): Pagination offset
 
 **Response:**
@@ -301,19 +311,27 @@ Audit log of ETL executions.
 {
   "data": [
     {
-      "id": "rec_001",
-      "title": "Sample Record",
-      "source": "api",
-      "value": 42.5,
-      "created_at": "2025-12-01T10:00:00Z",
-      "ingested_at": "2025-12-10T12:00:00Z"
+      "id": "coinpaprika_btc-bitcoin",
+      "ticker": "BTC",
+      "name": "Bitcoin",
+      "price_usd": 45000.50000000,
+      "market_cap_usd": 880000000000.0,
+      "volume_24h_usd": 25000000000.0,
+      "percent_change_24h": 2.5,
+      "source": "coinpaprika",
+      "created_at": "2025-01-10T10:00:00Z",
+      "ingested_at": "2025-01-10T12:00:00Z"
     }
   ],
-  "metadata": {
-    "total": 1523,
-    "limit": 100,
+  "pagination": {
+    "limit": 50,
     "offset": 0,
-    "count": 100
+    "returned": 1,
+    "total": 1523
+  },
+  "meta": {
+    "request_id": "req-1704892800000",
+    "api_latency_ms": 12.45
   }
 }
 ```
@@ -599,11 +617,21 @@ tests/
 
 ```bash
 DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/postgres
-API_SOURCE_KEY=sk_live_abc123xyz
-CSV_PATH=/app/data/transactions.csv
+API_SOURCE_KEY=  # Optional - CoinPaprika/CoinGecko don't require keys for basic usage
+CSV_PATH=/app/data/sample.csv
 LOG_LEVEL=INFO
 SCHEDULER_TOKEN=secure-random-token-here
 ```
+
+**CSV Format:**
+The CSV file should contain cryptocurrency data with the following columns:
+- `symbol` (required): Cryptocurrency ticker (e.g., BTC, ETH)
+- `name` (optional): Full name of the cryptocurrency
+- `price_usd` (required): Price in USD
+- `market_cap_usd` (optional): Market capitalization
+- `volume_24h_usd` (optional): 24-hour trading volume
+- `percent_change_24h` (optional): 24-hour price change percentage
+- `created_at` (optional): ISO timestamp (defaults to current time)
 
 ---
 
@@ -751,4 +779,5 @@ MIT License - See LICENSE file for details
 **Venkata Likith Sai Kovi**  
 GitHub: [@LikithsaiKovi](https://github.com/LikithsaiKovi)  
 Repository: [kasparro-backend-VenkataLikithSai-Kovi](https://github.com/LikithsaiKovi/kasparro-backend-VenkataLikithSai-Kovi)
+
 
