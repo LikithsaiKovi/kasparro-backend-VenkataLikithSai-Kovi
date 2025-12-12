@@ -1,5 +1,5 @@
 from functools import lru_cache
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -13,6 +13,22 @@ class Settings(BaseSettings):
     csv_path: str = Field(default="data/sample.csv", env="CSV_PATH")
     log_level: str = Field(default="INFO", env="LOG_LEVEL")
     scheduler_token: str | None = Field(default=None, env="SCHEDULER_TOKEN")
+
+    @field_validator("database_url")
+    @classmethod
+    def ensure_asyncpg_driver(cls, v: str) -> str:
+        """
+        Ensure DATABASE_URL uses asyncpg driver for async SQLAlchemy.
+        Railway and other platforms often provide postgresql:// URLs,
+        but we need postgresql+asyncpg:// for async operations.
+        """
+        if v.startswith("postgresql://") and "+asyncpg" not in v:
+            # Convert postgresql:// to postgresql+asyncpg://
+            v = v.replace("postgresql://", "postgresql+asyncpg://", 1)
+        elif v.startswith("postgres://") and "+asyncpg" not in v:
+            # Handle postgres:// shorthand as well
+            v = v.replace("postgres://", "postgresql+asyncpg://", 1)
+        return v
 
     class Config:
         env_file = ".env"
