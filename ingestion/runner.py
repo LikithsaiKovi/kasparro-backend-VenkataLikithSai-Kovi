@@ -203,10 +203,21 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.init_db:
-        asyncio.run(init_db())
+        try:
+            asyncio.run(init_db())
+            logger.info("Database initialized successfully")
+        except Exception as e:
+            logger.error(f"Database initialization failed: {e}")
+            import sys
+            sys.exit(1)
 
     if args.run_forever:
         asyncio.run(main(run_forever=True))
-    else:
-        asyncio.run(run_once())
+    elif args.once:
+        try:
+            asyncio.run(run_once())
+        except Exception as e:
+            logger.error(f"ETL run failed: {e}")
+            import sys
+            sys.exit(1)
 

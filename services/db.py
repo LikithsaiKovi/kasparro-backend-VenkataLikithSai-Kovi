@@ -15,8 +15,13 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
 
 async def init_db() -> None:
     """Create tables if they don't exist."""
-    async with engine.begin() as conn:
-        await conn.run_sync(models.Base.metadata.create_all)
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(models.Base.metadata.create_all)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Database initialization error: {e}")
+        raise
 
 
 
