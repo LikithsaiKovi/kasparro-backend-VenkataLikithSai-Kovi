@@ -3,7 +3,29 @@ from api.routes import data, health, stats, trigger
 from core.logger import configure_logging
 
 configure_logging()
-app = FastAPI(title="Kasparro Backend & ETL")
+app = FastAPI(
+    title="Kasparro Backend & ETL",
+    description="Cryptocurrency ETL Pipeline with CoinPaprika and CoinGecko APIs",
+    version="1.0.0"
+)
+
+@app.get("/")
+async def root():
+    """Root endpoint - returns API information and available endpoints."""
+    return {
+        "name": "Kasparro Backend & ETL",
+        "version": "1.0.0",
+        "status": "running",
+        "endpoints": {
+            "health": "/health",
+            "data": "/data",
+            "stats": "/stats",
+            "trigger_etl": "/trigger-etl",
+            "docs": "/docs",
+            "openapi": "/openapi.json"
+        },
+        "description": "Cryptocurrency ETL Pipeline ingesting data from CoinPaprika, CoinGecko, and CSV sources"
+    }
 
 app.include_router(data.router, prefix="/data", tags=["data"])
 app.include_router(health.router, prefix="/health", tags=["health"])
