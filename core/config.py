@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     api_source_key: str = Field(default="REPLACE_ME", env="API_SOURCE_KEY")
     csv_path: str = Field(default="data/sample.csv", env="CSV_PATH")
     log_level: str = Field(default="INFO", env="LOG_LEVEL")
+    scheduler_token: str | None = Field(default=None, env="SCHEDULER_TOKEN")
 
     class Config:
         env_file = ".env"
@@ -21,5 +22,8 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
+
+
 
 

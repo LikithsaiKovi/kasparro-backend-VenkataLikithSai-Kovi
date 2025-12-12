@@ -6,6 +6,8 @@ __pycache__/
 
 # Environment
 .env
+# But allow .env.example to be committed
+!.env.example
 
 # VS Code / editor
 .vscode/
@@ -20,5 +22,8 @@ coverage.xml
 *.log
 dist/
 build/
+
+
+
 
 

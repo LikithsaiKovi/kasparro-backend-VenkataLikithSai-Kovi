@@ -620,7 +620,7 @@ DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/postgres
 API_SOURCE_KEY=  # Optional - CoinPaprika/CoinGecko don't require keys for basic usage
 CSV_PATH=/app/data/sample.csv
 LOG_LEVEL=INFO
-SCHEDULER_TOKEN=secure-random-token-here
+SCHEDULER_TOKEN=oc_7tl3_IX2hk7jtmyVc-pzQASkip1P3Gaefz_AE2Mc  # Generated secure token
 ```
 
 **CSV Format:**
