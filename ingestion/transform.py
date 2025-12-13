@@ -1,6 +1,17 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict
 from schemas.record import RawAPIItem, RawCSVItem, NormalizedRecord
+
+
+def ensure_naive_datetime(dt: datetime) -> datetime:
+    """
+    Convert timezone-aware datetime to naive datetime.
+    Database uses TIMESTAMP WITHOUT TIME ZONE, so we must strip timezone info.
+    """
+    if dt.tzinfo is not None:
+        # Convert to UTC first, then remove timezone info
+        dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
+    return dt
 
 
 def normalize_ticker(symbol: str) -> str:
@@ -51,7 +62,7 @@ def transform_api_record(payload: Dict) -> NormalizedRecord:
         volume_24h_usd=raw.volume_24h_usd if raw.volume_24h_usd else None,
         percent_change_24h=raw.percent_change_24h if raw.percent_change_24h else None,
         source=raw.source_api,
-        created_at=raw.created_at,
+        created_at=ensure_naive_datetime(raw.created_at),
         ingested_at=datetime.utcnow(),
     )
 
@@ -81,7 +92,7 @@ def transform_csv_record(payload: Dict) -> NormalizedRecord:
         volume_24h_usd=raw.volume_24h_usd if raw.volume_24h_usd else None,
         percent_change_24h=raw.percent_change_24h if raw.percent_change_24h else None,
         source="csv",
-        created_at=raw.created_at,
+        created_at=ensure_naive_datetime(raw.created_at),
         ingested_at=datetime.utcnow(),
     )
 

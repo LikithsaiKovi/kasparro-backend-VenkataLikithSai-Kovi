@@ -89,6 +89,15 @@ async def _upsert_normalized(session: AsyncSession, record: NormalizedRecord) ->
     )
     
     # Now insert the new unified record
+    # Ensure all datetimes are timezone-naive (database uses TIMESTAMP WITHOUT TIME ZONE)
+    ingested_at = record.ingested_at or datetime.utcnow()
+    if ingested_at.tzinfo is not None:
+        ingested_at = ingested_at.astimezone().replace(tzinfo=None)
+    
+    created_at = record.created_at
+    if created_at.tzinfo is not None:
+        created_at = created_at.astimezone().replace(tzinfo=None)
+    
     new_record = models.NormalizedRecord(
         id=record.id,
         ticker=record.ticker,
@@ -98,8 +107,8 @@ async def _upsert_normalized(session: AsyncSession, record: NormalizedRecord) ->
         volume_24h_usd=record.volume_24h_usd,
         percent_change_24h=record.percent_change_24h,
         source=record.source,
-        created_at=record.created_at,
-        ingested_at=record.ingested_at or datetime.utcnow(),
+        created_at=created_at,
+        ingested_at=ingested_at,
     )
     session.add(new_record)
     await session.flush()
