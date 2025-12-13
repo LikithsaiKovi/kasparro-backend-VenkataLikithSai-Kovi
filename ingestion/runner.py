@@ -89,14 +89,28 @@ async def _upsert_normalized(session: AsyncSession, record: NormalizedRecord) ->
     )
     
     # Now insert the new unified record
-    # Ensure all datetimes are timezone-naive (database uses TIMESTAMP WITHOUT TIME ZONE)
+    # CRITICAL: Ensure all datetimes are timezone-naive (database uses TIMESTAMP WITHOUT TIME ZONE)
+    from datetime import timezone as tz
+    
+    # Convert ingested_at to naive
     ingested_at = record.ingested_at or datetime.utcnow()
     if ingested_at.tzinfo is not None:
-        ingested_at = ingested_at.astimezone().replace(tzinfo=None)
+        ingested_at = ingested_at.astimezone(tz.utc).replace(tzinfo=None)
+    # Double-check it's naive
+    if ingested_at.tzinfo is not None:
+        ingested_at = datetime(ingested_at.year, ingested_at.month, ingested_at.day,
+                               ingested_at.hour, ingested_at.minute, ingested_at.second,
+                               ingested_at.microsecond)
     
+    # Convert created_at to naive
     created_at = record.created_at
     if created_at.tzinfo is not None:
-        created_at = created_at.astimezone().replace(tzinfo=None)
+        created_at = created_at.astimezone(tz.utc).replace(tzinfo=None)
+    # Double-check it's naive
+    if created_at.tzinfo is not None:
+        created_at = datetime(created_at.year, created_at.month, created_at.day,
+                             created_at.hour, created_at.minute, created_at.second,
+                             created_at.microsecond)
     
     new_record = models.NormalizedRecord(
         id=record.id,
@@ -169,9 +183,11 @@ async def _ingest_csv(session: AsyncSession) -> None:
                 await _upsert_normalized(session, normalized)
                 processed += 1
                 latest_seen = max(latest_seen or normalized.id, normalized.id)
-            except Exception:
+            except Exception as exc:
                 logger.exception("CSV record failed validation/insert")
                 failed += 1
+                # Rollback the current transaction to allow processing other records
+                await session.rollback()
 
         await _update_checkpoint(session, "csv", latest_seen)
         await _finalize_run(session, run, status="success", processed=processed, failed=failed)

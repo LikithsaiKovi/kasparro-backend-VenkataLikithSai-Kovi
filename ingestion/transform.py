@@ -7,10 +7,16 @@ def ensure_naive_datetime(dt: datetime) -> datetime:
     """
     Convert timezone-aware datetime to naive datetime.
     Database uses TIMESTAMP WITHOUT TIME ZONE, so we must strip timezone info.
+    Creates a new datetime object to ensure it's truly naive.
     """
+    if dt is None:
+        return datetime.utcnow()
     if dt.tzinfo is not None:
-        # Convert to UTC first, then remove timezone info
-        dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
+        # Convert to UTC first, then create a new naive datetime
+        dt_utc = dt.astimezone(timezone.utc)
+        dt = datetime(dt_utc.year, dt_utc.month, dt_utc.day,
+                     dt_utc.hour, dt_utc.minute, dt_utc.second,
+                     dt_utc.microsecond)
     return dt
 
 
