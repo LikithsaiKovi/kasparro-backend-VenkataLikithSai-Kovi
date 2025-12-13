@@ -17,7 +17,7 @@ def test_transform_api_record_coinpaprika():
         "raw_data": {},
     }
     record = transform_api_record(payload)
-    assert record.id == "coinpaprika_BTC"
+    assert record.id == "BTC"  # Unified by ticker, not source_ticker
     assert record.source == "coinpaprika"
     assert record.ticker == "BTC"
     assert record.name == "Bitcoin"
@@ -40,7 +40,7 @@ def test_transform_api_record_coingecko():
         "raw_data": {},
     }
     record = transform_api_record(payload)
-    assert record.id == "coingecko_ETH"
+    assert record.id == "ETH"  # Unified by ticker, not source_ticker
     assert record.source == "coingecko"
     assert record.ticker == "ETH"  # Should be normalized to uppercase
     assert record.name == "Ethereum"
@@ -59,7 +59,7 @@ def test_transform_csv_record():
         "created_at": datetime.utcnow().isoformat(),
     }
     record = transform_csv_record(payload)
-    assert record.id == "csv_BTC"
+    assert record.id == "BTC"  # Unified by ticker, not source_ticker
     assert record.source == "csv"
     assert record.ticker == "BTC"
     assert record.name == "Bitcoin"

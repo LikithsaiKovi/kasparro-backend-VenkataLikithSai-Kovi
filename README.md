@@ -4,12 +4,6 @@ A production-ready ETL pipeline and REST API built with FastAPI, async SQLAlchem
 
 **Docker Hub Image:** `likithsai32/etl-assignment:latest`
 
-**Live API (Production):** https://kasparro-backend-venkatalikithsai-kovi-production.up.railway.app/
-- **Docs:** https://kasparro-backend-venkatalikithsai-kovi-production.up.railway.app/docs
-- **Health:** https://kasparro-backend-venkatalikithsai-kovi-production.up.railway.app/health
-- **Stats:** https://kasparro-backend-venkatalikithsai-kovi-production.up.railway.app/stats
-- **Data (sample):** https://kasparro-backend-venkatalikithsai-kovi-production.up.railway.app/data?limit=5
-
 ---
 
 ## Table of Contents
@@ -485,22 +479,6 @@ curl "http://localhost:8000/data?limit=5"
 open http://localhost:8000/docs
 ```
 
-### Quick Test on Production
-
-```bash
-# Health check
-curl https://kasparro-backend-venkatalikithsai-kovi-production.up.railway.app/health
-
-# View stats
-curl https://kasparro-backend-venkatalikithsai-kovi-production.up.railway.app/stats
-
-# Query data
-curl "https://kasparro-backend-venkatalikithsai-kovi-production.up.railway.app/data?limit=5"
-
-# Open interactive docs
-# (in a browser) https://kasparro-backend-venkatalikithsai-kovi-production.up.railway.app/docs
-```
-
 ---
 
 ## Deployment
@@ -524,7 +502,7 @@ gcloud run deploy kasparro-etl \
 # Schedule ETL via Cloud Scheduler
 gcloud scheduler jobs create http etl-hourly \
   --schedule="0 * * * *" \
-  --uri="https://kasparro-backend-venkatalikithsai-kovi-production.up.railway.app/trigger-etl" \
+  --uri="https://kasparro-etl-xyz.run.app/trigger-etl" \
   --http-method=POST \
   --headers="X-Scheduler-Token=YOUR_SECRET_TOKEN"
 ```

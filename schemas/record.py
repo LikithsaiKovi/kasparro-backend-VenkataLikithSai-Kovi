@@ -38,7 +38,7 @@ class RawCSVItem(BaseModel):
 
 class NormalizedRecord(BaseModel):
     """Normalized cryptocurrency record with unified schema"""
-    id: str  # Unified ID: source_symbol (e.g., "coinpaprika_BTC", "coingecko_BTC", "csv_BTC")
+    id: str  # Unified ID: ticker symbol (e.g., "BTC", "ETH") - unifies all sources by coin name
     ticker: str  # Unified ticker symbol (e.g., "BTC", "ETH")
     name: str
     price_usd: float

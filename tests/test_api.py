@@ -49,7 +49,7 @@ async def override_db():
     session = FakeSession(
         rows=[
             models.NormalizedRecord(
-                id="coinpaprika_BTC",
+                id="BTC",  # Unified by ticker, not source_ticker
                 ticker="BTC",
                 name="Bitcoin",
                 price_usd=45000.50,

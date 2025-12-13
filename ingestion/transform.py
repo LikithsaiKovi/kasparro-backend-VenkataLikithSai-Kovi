@@ -36,8 +36,8 @@ def transform_api_record(payload: Dict) -> NormalizedRecord:
     # Normalize ticker symbol
     ticker = normalize_ticker(raw.symbol)
     
-    # Create unified ID: source_ticker (e.g., "coinpaprika_BTC")
-    unified_id = f"{raw.source_api}_{ticker}"
+    # Use ticker as unified ID to merge all sources by coin name
+    unified_id = ticker
     
     # Normalize price
     normalized_price = normalize_price(raw.price_usd)
@@ -66,8 +66,8 @@ def transform_csv_record(payload: Dict) -> NormalizedRecord:
     # Normalize ticker symbol
     ticker = normalize_ticker(raw.symbol)
     
-    # Create unified ID: csv_ticker (e.g., "csv_BTC")
-    unified_id = f"csv_{ticker}"
+    # Use ticker as unified ID to merge all sources by coin name
+    unified_id = ticker
     
     # Normalize price
     normalized_price = normalize_price(raw.price_usd)
