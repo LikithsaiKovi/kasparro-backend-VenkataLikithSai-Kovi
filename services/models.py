@@ -30,7 +30,7 @@ class NormalizedRecord(Base):
     __tablename__ = "normalized_records"
 
     id = Column(String, primary_key=True)
-    ticker = Column(String, nullable=False, index=True)  # Unified ticker symbol (BTC, ETH, etc.)
+    ticker = Column(String, nullable=False, index=True, unique=True)  # Unified ticker symbol (BTC, ETH, etc.) - unique to ensure one record per coin
     name = Column(String, nullable=False)
     price_usd = Column(Float, nullable=False)
     market_cap_usd = Column(Float, nullable=True)

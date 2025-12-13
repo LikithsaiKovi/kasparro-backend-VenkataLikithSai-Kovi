@@ -75,33 +75,58 @@ async def _finalize_run(session: AsyncSession, run: models.ETLRun, status: str, 
 
 
 async def _upsert_normalized(session: AsyncSession, record: NormalizedRecord) -> None:
-    stmt = pg_insert(models.NormalizedRecord).values(
-        id=record.id,
-        ticker=record.ticker,
-        name=record.name,
-        price_usd=record.price_usd,
-        market_cap_usd=record.market_cap_usd,
-        volume_24h_usd=record.volume_24h_usd,
-        percent_change_24h=record.percent_change_24h,
-        source=record.source,
-        created_at=record.created_at,
-        ingested_at=record.ingested_at or func.now(),
+    """
+    Upsert normalized record. Uses ticker to ensure one record per coin across all sources.
+    This implements true normalization by coin name - all sources for the same ticker merge into one record.
+    """
+    from sqlalchemy import delete
+    
+    # First, delete any old-format records with the same ticker (e.g., coinpaprika_BTC, coingecko_BTC)
+    # This ensures we don't have duplicate records from the migration period
+    await session.execute(
+        delete(models.NormalizedRecord)
+        .where(models.NormalizedRecord.ticker == record.ticker)
+        .where(
+            (models.NormalizedRecord.id.like('coinpaprika_%')) |
+            (models.NormalizedRecord.id.like('coingecko_%')) |
+            (models.NormalizedRecord.id.like('csv_%'))
+        )
     )
-    stmt = stmt.on_conflict_do_update(
-        index_elements=[models.NormalizedRecord.id],
-        set_={
-            "ticker": stmt.excluded.ticker,
-            "name": stmt.excluded.name,
-            "price_usd": stmt.excluded.price_usd,
-            "market_cap_usd": stmt.excluded.market_cap_usd,
-            "volume_24h_usd": stmt.excluded.volume_24h_usd,
-            "percent_change_24h": stmt.excluded.percent_change_24h,
-            "source": stmt.excluded.source,
-            "created_at": stmt.excluded.created_at,
-            "ingested_at": func.now(),
-        },
+    
+    # Check if a record with this ticker already exists (regardless of ID format)
+    existing = await session.execute(
+        select(models.NormalizedRecord).where(models.NormalizedRecord.ticker == record.ticker)
     )
-    await session.execute(stmt)
+    existing_record = existing.scalar_one_or_none()
+    
+    if existing_record:
+        # Update existing record - this unifies all sources by ticker
+        existing_record.id = record.id  # Update to new format
+        existing_record.name = record.name
+        existing_record.price_usd = record.price_usd
+        existing_record.market_cap_usd = record.market_cap_usd
+        existing_record.volume_24h_usd = record.volume_24h_usd
+        existing_record.percent_change_24h = record.percent_change_24h
+        existing_record.source = record.source
+        existing_record.created_at = record.created_at
+        existing_record.ingested_at = record.ingested_at or datetime.utcnow()
+    else:
+        # Insert new record
+        new_record = models.NormalizedRecord(
+            id=record.id,
+            ticker=record.ticker,
+            name=record.name,
+            price_usd=record.price_usd,
+            market_cap_usd=record.market_cap_usd,
+            volume_24h_usd=record.volume_24h_usd,
+            percent_change_24h=record.percent_change_24h,
+            source=record.source,
+            created_at=record.created_at,
+            ingested_at=record.ingested_at or datetime.utcnow(),
+        )
+        session.add(new_record)
+    
+    await session.flush()
 
 
 async def _ingest_api(session: AsyncSession) -> None:
