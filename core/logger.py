@@ -26,5 +26,3 @@ configure_logging()
 
 
 
-
-

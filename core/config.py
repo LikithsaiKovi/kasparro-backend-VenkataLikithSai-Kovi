@@ -6,7 +6,7 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     app_name: str = Field(default="Kasparro ETL")
     database_url: str = Field(
-        default="",  # Must be provided via environment variable
+        default="postgresql+asyncpg://postgres:postgres@localhost:5432/postgres",
         env="DATABASE_URL",
     )
     api_source_key: str = Field(default="REPLACE_ME", env="API_SOURCE_KEY")
@@ -22,8 +22,6 @@ class Settings(BaseSettings):
         Railway and other platforms often provide postgresql:// URLs,
         but we need postgresql+asyncpg:// for async operations.
         """
-        if not v:
-            return v  # Empty string is allowed (must be set via env var)
         if v.startswith("postgresql://") and "+asyncpg" not in v:
             # Convert postgresql:// to postgresql+asyncpg://
             v = v.replace("postgresql://", "postgresql+asyncpg://", 1)
