@@ -243,7 +243,7 @@ Unified, queryable cryptocurrency schema.
 
 | Column              | Type      | Description                          |
 |---------------------|-----------|--------------------------------------|
-| id                  | STRING    | Primary key (source_ticker format, e.g., "coinpaprika_BTC") |
+| id                  | STRING    | Primary key: unified ticker symbol (e.g., "BTC", "ETH") - merges all sources by coin name |
 | ticker              | STRING    | Unified cryptocurrency ticker symbol (e.g., "BTC", "ETH") |
 | name                | STRING    | Full cryptocurrency name (e.g., "Bitcoin") |
 | price_usd           | FLOAT     | Price in USD (normalized to 8 decimal places) |
@@ -255,11 +255,12 @@ Unified, queryable cryptocurrency schema.
 | ingested_at         | TIMESTAMP | When normalized record was saved     |
 
 **Design:** 
-- `id` is primary key with format `{source}_{ticker}` (e.g., "coinpaprika_BTC", "coingecko_ETH")
+- `id` is primary key using ticker symbol only (e.g., "BTC", "ETH") - this unifies all sources by coin name
+- Multiple sources (CoinPaprika, CoinGecko, CSV) for the same coin merge into a single record
 - `ticker` is indexed for efficient filtering by cryptocurrency symbol
-- `source` enables filtering by origin (coinpaprika, coingecko, csv)
+- `source` enables filtering by origin (coinpaprika, coingecko, csv) but does not affect the ID
 - Ticker unification ensures same cryptocurrency from different sources can be queried by common ticker
-- Upserts update all fields on conflict (enables price corrections)
+- Upserts update all fields on conflict (enables price corrections and source updates)
 
 ### `etl_checkpoints`
 Tracks incremental processing state.
@@ -311,7 +312,7 @@ Audit log of ETL executions.
 {
   "data": [
     {
-      "id": "coinpaprika_btc-bitcoin",
+      "id": "BTC",
       "ticker": "BTC",
       "name": "Bitcoin",
       "price_usd": 45000.50000000,
@@ -425,7 +426,7 @@ docker pull likithsai32/etl-assignment:latest
 
 # Create .env file with required variables
 cat > .env << EOF
-DATABASE_URL=postgresql+asyncpg://postgres:postgres@host.docker.internal:5432/postgres
+DATABASE_URL=postgresql+asyncpg://user:password@host.docker.internal:5432/database
 API_SOURCE_KEY=your_api_key_here
 CSV_PATH=/data/sample.csv
 LOG_LEVEL=INFO
@@ -449,7 +450,7 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 
 # Set environment variables
-export DATABASE_URL="postgresql+asyncpg://postgres:postgres@localhost:5432/postgres"
+export DATABASE_URL="postgresql+asyncpg://user:password@localhost:5432/database"
 export API_SOURCE_KEY="your_key"
 export CSV_PATH="data/sample.csv"
 
@@ -616,11 +617,11 @@ tests/
 ### Example `.env` File
 
 ```bash
-DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/postgres
+DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/database
 API_SOURCE_KEY=  # Optional - CoinPaprika/CoinGecko don't require keys for basic usage
 CSV_PATH=/app/data/sample.csv
 LOG_LEVEL=INFO
-SCHEDULER_TOKEN=oc_7tl3_IX2hk7jtmyVc-pzQASkip1P3Gaefz_AE2Mc  # Generated secure token
+SCHEDULER_TOKEN=your-secure-token-here  # Generate a secure random token
 ```
 
 **CSV Format:**
