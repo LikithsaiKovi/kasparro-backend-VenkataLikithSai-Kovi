@@ -2,9 +2,218 @@
 
 A production-ready ETL pipeline and REST API built with FastAPI, async SQLAlchemy, and PostgreSQL. The system ingests cryptocurrency data from multiple sources (CoinPaprika API, CoinGecko API, and CSV), stores raw data, performs schema normalization with ticker unification and price precision handling, and exposes queryable endpoints with comprehensive metadata and observability.
 
-**Version:** 1.1.2
+**Version:** 1.1.2  
+**Status:** ✅ Fully Functional & Tested  
+**Live Deployment:** [https://kasparro-backend-venkatalikithsai-kovi-production.up.railway.app/](https://kasparro-backend-venkatalikithsai-kovi-production.up.railway.app/)  
+**GitHub Repository:** [https://github.com/LikithsaiKovi/kasparro-backend-VenkataLikithSai-Kovi](https://github.com/LikithsaiKovi/kasparro-backend-VenkataLikithSai-Kovi)
 
-**Status:** ✅ Fully Functional & Tested
+---
+
+## 🏗️ System Architecture & Data Flow
+
+### Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                           EXTERNAL DATA SOURCES                                  │
+│                                                                                   │
+│  ┌──────────────┐      ┌──────────────┐      ┌──────────────┐                 │
+│  │ CoinPaprika  │      │  CoinGecko   │      │   CSV Files  │                 │
+│  │     API      │      │     API      │      │              │                 │
+│  │              │      │              │      │  (Local/     │                 │
+│  │ REST API     │      │ REST API     │      │  Mounted)    │                 │
+│  └──────┬───────┘      └──────┬───────┘      └──────┬───────┘                 │
+│         │                      │                      │                          │
+│         └──────────────────────┼──────────────────────┘                          │
+│                                │                                                  │
+└────────────────────────────────┼──────────────────────────────────────────────────┘
+                                 │
+                                 ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                        ETL PIPELINE (Background Process)                         │
+│                                                                                   │
+│  ┌─────────────────────────────────────────────────────────────────────────┐   │
+│  │  EXTRACT LAYER                                                          │   │
+│  │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐        │   │
+│  │  │  API Source     │  │  API Source     │  │  CSV Source     │        │   │
+│  │  │  Fetcher        │  │  Fetcher        │  │  Reader         │        │   │
+│  │  │  (CoinPaprika)  │  │  (CoinGecko)    │  │  (CSV Parser)   │        │   │
+│  │  └────────┬────────┘  └────────┬────────┘  └────────┬────────┘        │   │
+│  └───────────┼─────────────────────┼─────────────────────┼──────────────────┘   │
+│              │                     │                     │                       │
+│              └─────────────────────┼─────────────────────┘                       │
+│                                    │                                             │
+│                                    ▼                                             │
+│  ┌─────────────────────────────────────────────────────────────────────────┐   │
+│  │  TRANSFORM LAYER                                                        │   │
+│  │  ┌─────────────────────────────────────────────────────────────────┐   │   │
+│  │  │  1. Schema Validation (Pydantic Models)                         │   │   │
+│  │  │  2. Ticker Normalization (Uppercase, Strip)                     │   │   │
+│  │  │  3. Price Precision (8 decimal places)                          │   │   │
+│  │  │  4. Data Type Conversion                                        │   │   │
+│  │  └─────────────────────────────────────────────────────────────────┘   │   │
+│  │                                                                         │   │
+│  │  ┌─────────────────────────────────────────────────────────────────┐   │   │
+│  │  │  NORMALIZATION ENGINE (Best-Practice Merging)                   │   │   │
+│  │  │  • Merge multi-source records by ticker                         │   │   │
+│  │  │  • Volatile fields: Use most recent (by created_at)             │   │   │
+│  │  │  • Static fields: Canonical source priority                     │   │   │
+│  │  │  • Preserve one record per ticker                               │   │   │
+│  │  └─────────────────────────────────────────────────────────────────┘   │   │
+│  └─────────────────────────────────────────────────────────────────────────┘   │
+│                                    │                                             │
+│                                    ▼                                             │
+│  ┌─────────────────────────────────────────────────────────────────────────┐   │
+│  │  LOAD LAYER                                                             │   │
+│  │  ┌─────────────────┐              ┌─────────────────┐                 │   │
+│  │  │  Raw Data       │              │  Normalized     │                 │   │
+│  │  │  Storage        │              │  Data Storage   │                 │   │
+│  │  │  (Audit Trail)  │              │  (Queryable)    │                 │   │
+│  │  └─────────────────┘              └─────────────────┘                 │   │
+│  │                                                                         │   │
+│  │  • Idempotent Upserts (ON CONFLICT)                                    │   │
+│  │  • Checkpoint Tracking (Incremental Processing)                        │   │
+│  │  • Run History Logging (Observability)                                 │   │
+│  └─────────────────────────────────────────────────────────────────────────┘   │
+└────────────────────────────────────┼─────────────────────────────────────────────┘
+                                     │
+                                     ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                      POSTGRESQL DATABASE (Data Warehouse)                        │
+│                                                                                   │
+│  ┌─────────────────────────────────────────────────────────────────────────┐   │
+│  │  RAW DATA TABLES (Audit & Reprocessing)                                 │   │
+│  │  ┌────────────────────┐      ┌────────────────────┐                    │   │
+│  │  │ raw_api_records    │      │ raw_csv_records    │                    │   │
+│  │  │ • external_id (PK) │      │ • external_id (PK) │                    │   │
+│  │  │ • payload (JSONB)  │      │ • payload (JSONB)  │                    │   │
+│  │  │ • ingested_at      │      │ • ingested_at      │                    │   │
+│  │  └────────────────────┘      └────────────────────┘                    │   │
+│  └─────────────────────────────────────────────────────────────────────────┘   │
+│                                                                                   │
+│  ┌─────────────────────────────────────────────────────────────────────────┐   │
+│  │  NORMALIZED DATA (Unified Schema)                                       │   │
+│  │  ┌─────────────────────────────────────────────────────────────────┐   │   │
+│  │  │ normalized_records                                              │   │   │
+│  │  │ • id (PK): merged_{ticker}                                      │   │   │
+│  │  │ • ticker (indexed, uppercase)                                   │   │   │
+│  │  │ • name, price_usd, market_cap_usd, volume_24h_usd              │   │   │
+│  │  │ • percent_change_24h, source, created_at, ingested_at           │   │   │
+│  │  │ • ONE RECORD PER TICKER (merged from all sources)               │   │   │
+│  │  └─────────────────────────────────────────────────────────────────┘   │   │
+│  └─────────────────────────────────────────────────────────────────────────┘   │
+│                                                                                   │
+│  ┌─────────────────────────────────────────────────────────────────────────┐   │
+│  │  METADATA TABLES (ETL Management)                                       │   │
+│  │  ┌────────────────────┐      ┌────────────────────┐                    │   │
+│  │  │ etl_checkpoints    │      │ etl_runs           │                    │   │
+│  │  │ • source (unique)  │      │ • source, status   │                    │   │
+│  │  │ • last_id          │      │ • processed/failed │                    │   │
+│  │  │ • last_timestamp   │      │ • duration_ms      │                    │   │
+│  │  └────────────────────┘      │ • started_at       │                    │   │
+│  │                               │ • finished_at      │                    │   │
+│  │                               └────────────────────┘                    │   │
+│  └─────────────────────────────────────────────────────────────────────────┘   │
+└────────────────────────────────────┼─────────────────────────────────────────────┘
+                                     │
+                                     ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                         FASTAPI REST API LAYER                                   │
+│                                                                                   │
+│  ┌─────────────────────────────────────────────────────────────────────────┐   │
+│  │  API ROUTES                                                             │   │
+│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐                 │   │
+│  │  │  GET /health │  │  GET /data   │  │  GET /stats  │                 │   │
+│  │  │  • DB status │  │  • Query     │  │  • ETL       │                 │   │
+│  │  │  • Last ETL  │  │  • Filter    │  │    metrics   │                 │   │
+│  │  └──────────────┘  │  • Paginate  │  └──────────────┘                 │   │
+│  │                    └──────────────┘                                    │   │
+│  │  ┌──────────────────┐      ┌──────────────────┐                       │   │
+│  │  │ POST /trigger-etl│      │  GET /docs       │                       │   │
+│  │  │ • Manual trigger │      │  • Swagger UI    │                       │   │
+│  │  │ • Background job │      │  • Interactive   │                       │   │
+│  │  └──────────────────┘      └──────────────────┘                       │   │
+│  └─────────────────────────────────────────────────────────────────────────┘   │
+│                                                                                   │
+│  • Async SQLAlchemy queries                                                      │
+│  • Request/Response validation (Pydantic)                                        │
+│  • Error handling & logging                                                      │
+│  • CORS enabled for cross-origin requests                                        │
+└────────────────────────────────────┼─────────────────────────────────────────────┘
+                                     │
+                                     ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                              API CLIENTS                                         │
+│                                                                                   │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐                         │
+│  │   Web        │  │   Mobile     │  │   Analytics  │                         │
+│  │  Dashboard   │  │     App      │  │   Platform   │                         │
+│  └──────────────┘  └──────────────┘  └──────────────┘                         │
+│                                                                                   │
+│  • REST API Consumers                                                            │
+│  • Real-time cryptocurrency data                                                 │
+│  • Filtered & aggregated queries                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Data Flow Sequence
+
+```
+1. ETL Trigger (Scheduled/Manual)
+   ↓
+2. EXTRACT: Fetch from CoinPaprika API, CoinGecko API, CSV
+   ↓
+3. TRANSFORM: 
+   - Validate with Pydantic schemas
+   - Normalize tickers (uppercase)
+   - Normalize prices (8 decimals)
+   - Map to unified schema
+   ↓
+4. MERGE (Best-Practice):
+   - Check for existing record by ticker
+   - Merge volatile fields (use most recent)
+   - Merge static fields (use canonical source)
+   - Create/Update unified record
+   ↓
+5. LOAD:
+   - Store raw payloads (audit trail)
+   - Upsert normalized records (one per ticker)
+   - Update checkpoints (incremental processing)
+   - Log ETL run metadata
+   ↓
+6. API Query:
+   - Client requests /data?ticker=BTC
+   - FastAPI queries normalized_records
+   - Returns merged, enriched record
+   ↓
+7. Response: Single unified record with best data from all sources
+```
+
+### Key Design Decisions
+
+1. **Raw + Normalized Pattern**
+   - Raw tables preserve original payloads (audit, reprocessing)
+   - Normalized table provides unified, queryable schema
+
+2. **Best-Practice Merging**
+   - Volatile fields: Most recent wins (by timestamp)
+   - Static fields: Canonical source priority
+   - One record per ticker (no duplicates)
+
+3. **Incremental Processing**
+   - Checkpoints track last processed ID per source
+   - Resumes from failure points
+   - Reduces redundant processing
+
+4. **Idempotent Operations**
+   - All inserts use `ON CONFLICT` clauses
+   - Safe to retry ETL runs
+   - Exactly-once semantics
+
+5. **Async Architecture**
+   - Async SQLAlchemy + asyncpg driver
+   - Async HTTP clients (httpx)
+   - Maximizes I/O concurrency
 
 ---
 
@@ -675,12 +884,54 @@ Venkata Likith Sai Kovi
 
 ---
 
-## 🔗 Links
+## 🔗 Links & Resources
 
-- **Interactive API Documentation:** http://localhost:8000/docs (when running locally)
+- **Interactive API Documentation:** 
+  - Local: http://localhost:8000/docs
+  - Production: [https://kasparro-backend-venkatalikithsai-kovi-production.up.railway.app/docs](https://kasparro-backend-venkatalikithsai-kovi-production.up.railway.app/docs)
 - **Testing Instructions:** [TESTING_INSTRUCTIONS.md](TESTING_INSTRUCTIONS.md)
+- **Normalization Testing:** [TESTING_NORMALIZATION.md](TESTING_NORMALIZATION.md)
 - **Normalization Details:** [NORMALIZATION.md](NORMALIZATION.md)
-- **GitHub Repository:** https://github.com/LikithsaiKovi/kasparro-backend-VenkataLikithSai-Kovi
+
+---
+
+## 🌐 Production Deployment
+
+### Live Application
+
+**Deployed URL:** [https://kasparro-backend-venkatalikithsai-kovi-production.up.railway.app/](https://kasparro-backend-venkatalikithsai-kovi-production.up.railway.app/)
+
+### Production Endpoints
+
+- **Health Check:** [https://kasparro-backend-venkatalikithsai-kovi-production.up.railway.app/health](https://kasparro-backend-venkatalikithsai-kovi-production.up.railway.app/health)
+- **API Data:** [https://kasparro-backend-venkatalikithsai-kovi-production.up.railway.app/data](https://kasparro-backend-venkatalikithsai-kovi-production.up.railway.app/data)
+- **Statistics:** [https://kasparro-backend-venkatalikithsai-kovi-production.up.railway.app/stats](https://kasparro-backend-venkatalikithsai-kovi-production.up.railway.app/stats)
+- **Interactive Docs:** [https://kasparro-backend-venkatalikithsai-kovi-production.up.railway.app/docs](https://kasparro-backend-venkatalikithsai-kovi-production.up.railway.app/docs)
+
+### Quick Production Test
+
+```bash
+# Health check
+curl https://kasparro-backend-venkatalikithsai-kovi-production.up.railway.app/health
+
+# View data
+curl https://kasparro-backend-venkatalikithsai-kovi-production.up.railway.app/data?limit=5
+
+# View stats
+curl https://kasparro-backend-venkatalikithsai-kovi-production.up.railway.app/stats
+```
+
+---
+
+## 📦 Source Code Repository
+
+**GitHub Repository:** [https://github.com/LikithsaiKovi/kasparro-backend-VenkataLikithSai-Kovi](https://github.com/LikithsaiKovi/kasparro-backend-VenkataLikithSai-Kovi)
+
+- ✅ All source code available
+- ✅ Complete commit history
+- ✅ Comprehensive documentation
+- ✅ Testing guides included
+- ✅ Production-ready codebase
 
 ---
 
@@ -688,14 +939,35 @@ Venkata Likith Sai Kovi
 
 This system has been tested and verified to work correctly:
 
-- ✅ All API endpoints functional
-- ✅ Database operations working
-- ✅ ETL pipeline ingesting data correctly
-- ✅ Data normalization working (one record per ticker)
+### Core Functionality
+- ✅ All API endpoints functional (local & production)
+- ✅ Database operations working (PostgreSQL with async SQLAlchemy)
+- ✅ ETL pipeline ingesting data correctly from multiple sources
+- ✅ Data normalization working (best-practice merging, one record per ticker)
 - ✅ Filtering and pagination functional
-- ✅ Error handling implemented
-- ✅ Docker deployment working
+- ✅ Error handling and logging implemented
+
+### Deployment & Infrastructure
+- ✅ Docker Compose deployment working
 - ✅ Production deployment on Railway functional
+- ✅ Database connectivity verified (local & cloud)
+- ✅ Environment configuration working
+
+### Data Quality
+- ✅ Multi-source data merging (CoinPaprika, CoinGecko, CSV)
+- ✅ Ticker normalization (uppercase)
+- ✅ Price precision handling (8 decimal places)
+- ✅ Source tracking and provenance
+- ✅ Raw data preservation (audit trail)
+
+### API Features
+- ✅ Health monitoring endpoint
+- ✅ Comprehensive data querying (filtering, pagination)
+- ✅ Statistics and metrics
+- ✅ Interactive API documentation (Swagger UI)
+- ✅ Manual ETL triggering
 
 **Last Verified:** December 2024  
-**Version:** 1.1.2
+**Version:** 1.1.2  
+**Deployment Status:** ✅ Live on Railway  
+**Code Repository:** ✅ Available on GitHub
