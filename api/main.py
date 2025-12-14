@@ -6,7 +6,7 @@ configure_logging()
 app = FastAPI(
     title="Kasparro Backend & ETL",
     description="Cryptocurrency ETL Pipeline with CoinPaprika and CoinGecko APIs",
-    version="1.0.0"
+    version="1.1.2"
 )
 
 @app.get("/")
