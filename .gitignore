@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+.pytest_cache/
+.venv/
+*.pyc
+
+# Environment
+.env
+# But allow .env.example to be committed
+!.env.example
+
+# VS Code / editor
+.vscode/
+.idea/
+
+# Byte-compiled / coverage
+.coverage
+htmlcov/
+coverage.xml
+
+# Docker
+*.log
+dist/
+build/
+
+
+
+
+
