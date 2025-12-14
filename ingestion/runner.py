@@ -75,13 +75,18 @@ async def _finalize_run(session: AsyncSession, run: models.ETLRun, status: str, 
 
 
 async def _upsert_normalized(session: AsyncSession, record: NormalizedRecord) -> None:
-    """Upsert normalized record."""
-    # Delete existing record with same ID, then insert new one
-    existing = await session.get(models.NormalizedRecord, record.id)
-    if existing:
-        await session.delete(existing)
-        await session.flush()
+    """Upsert normalized record - enforces one record per ticker (unification by overwrite)."""
+    from sqlalchemy import delete
     
+    # CRITICAL: Delete ALL existing records with the same ticker (regardless of ID format)
+    # This ensures true unification - only one record per ticker exists
+    await session.execute(
+        delete(models.NormalizedRecord)
+        .where(models.NormalizedRecord.ticker == record.ticker)
+    )
+    await session.flush()
+    
+    # Now insert the new unified record
     new_record = models.NormalizedRecord(
         id=record.id,
         ticker=record.ticker,

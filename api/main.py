@@ -14,7 +14,7 @@ async def root():
     """Root endpoint - returns API information and available endpoints."""
     return {
         "name": "Kasparro Backend & ETL",
-        "version": "1.0.0",
+        "version": "1.1.2",
         "status": "running",
         "endpoints": {
             "health": "/health",
