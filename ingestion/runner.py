@@ -12,6 +12,7 @@ from core.logger import configure_logging
 from ingestion.sources.api_source import fetch_api_records
 from ingestion.sources.csv_source import fetch_csv_records
 from ingestion.transform import transform_api_record, transform_csv_record
+from ingestion.normalize import merge_records
 from schemas.record import NormalizedRecord
 from services import models
 from services.db import get_session, init_db
@@ -75,29 +76,61 @@ async def _finalize_run(session: AsyncSession, run: models.ETLRun, status: str, 
 
 
 async def _upsert_normalized(session: AsyncSession, record: NormalizedRecord) -> None:
-    """Upsert normalized record - enforces one record per ticker (unification by overwrite)."""
-    from sqlalchemy import delete
+    """
+    Upsert normalized record using best-practice merging strategy.
     
-    # CRITICAL: Delete ALL existing records with the same ticker (regardless of ID format)
-    # This ensures true unification - only one record per ticker exists
-    await session.execute(
-        delete(models.NormalizedRecord)
-        .where(models.NormalizedRecord.ticker == record.ticker)
+    Merge Strategy:
+    - Find existing record by ticker (if any)
+    - Merge intelligently: most recent for volatile fields, canonical source for static fields
+    - Preserve one record per ticker with enriched data from all sources
+    """
+    from sqlalchemy import select, delete
+    
+    # Find existing record by ticker (not by ID, since IDs differ per source)
+    result = await session.execute(
+        select(models.NormalizedRecord).where(models.NormalizedRecord.ticker == record.ticker)
     )
-    await session.flush()
+    existing_db_record = result.scalar_one_or_none()
     
-    # Now insert the new unified record
+    # Convert existing DB record to Pydantic model if exists
+    existing_record = None
+    if existing_db_record:
+        existing_record = NormalizedRecord(
+            id=existing_db_record.id,
+            ticker=existing_db_record.ticker,
+            name=existing_db_record.name,
+            price_usd=existing_db_record.price_usd,
+            market_cap_usd=existing_db_record.market_cap_usd,
+            volume_24h_usd=existing_db_record.volume_24h_usd,
+            percent_change_24h=existing_db_record.percent_change_24h,
+            source=existing_db_record.source,
+            created_at=existing_db_record.created_at,
+            ingested_at=existing_db_record.ingested_at,
+        )
+    
+    # Merge records using intelligent strategy
+    merged_record = merge_records(existing_record, record)
+    
+    # Delete existing record if it exists (we'll insert merged version)
+    if existing_db_record:
+        await session.delete(existing_db_record)
+        await session.flush()
+    
+    # Insert/Update with merged record
+    # Use canonical ID format: merged_{ticker} to ensure one record per ticker
+    merged_id = f"merged_{merged_record.ticker.lower()}"
+    
     new_record = models.NormalizedRecord(
-        id=record.id,
-        ticker=record.ticker,
-        name=record.name,
-        price_usd=record.price_usd,
-        market_cap_usd=record.market_cap_usd,
-        volume_24h_usd=record.volume_24h_usd,
-        percent_change_24h=record.percent_change_24h,
-        source=record.source,
-        created_at=record.created_at,
-        ingested_at=record.ingested_at or datetime.utcnow(),
+        id=merged_id,
+        ticker=merged_record.ticker,
+        name=merged_record.name,
+        price_usd=merged_record.price_usd,
+        market_cap_usd=merged_record.market_cap_usd,
+        volume_24h_usd=merged_record.volume_24h_usd,
+        percent_change_24h=merged_record.percent_change_24h,
+        source=merged_record.source,  # Primary source after merge
+        created_at=merged_record.created_at,
+        ingested_at=merged_record.ingested_at or datetime.utcnow(),
     )
     session.add(new_record)
     await session.flush()
