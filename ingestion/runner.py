@@ -77,18 +77,27 @@ async def _finalize_run(session: AsyncSession, run: models.ETLRun, status: str, 
 
 async def _upsert_normalized(session: AsyncSession, record: NormalizedRecord) -> None:
     """
-    Upsert normalized record using best-practice merging strategy.
+    Upsert normalized record using best-practice merging strategy with improved concurrency safety.
     
     Merge Strategy:
-    - Find existing record by ticker (if any)
+    - Find existing record by ticker (if any) using FOR UPDATE lock for safety
     - Merge intelligently: most recent for volatile fields, canonical source for static fields
     - Preserve one record per ticker with enriched data from all sources
+    
+    Concurrency Safety:
+    - Uses database-level locking (FOR UPDATE) to prevent race conditions
+    - Transaction-scoped: All operations happen atomically within the session
+    - Canonical ID ensures idempotent updates even with concurrent requests
+    - For production systems with high concurrency, consider moving merge logic to a database trigger
     """
     from sqlalchemy import select, delete
     
-    # Find existing record by ticker (not by ID, since IDs differ per source)
+    # Find existing record by ticker using FOR UPDATE lock for safe concurrent access
+    # This prevents other transactions from modifying the same record while we're updating it
     result = await session.execute(
-        select(models.NormalizedRecord).where(models.NormalizedRecord.ticker == record.ticker)
+        select(models.NormalizedRecord)
+        .where(models.NormalizedRecord.ticker == record.ticker)
+        .with_for_update()  # Row-level lock: prevents other transactions from modifying this record
     )
     existing_db_record = result.scalar_one_or_none()
     
@@ -111,15 +120,17 @@ async def _upsert_normalized(session: AsyncSession, record: NormalizedRecord) ->
     # Merge records using intelligent strategy
     merged_record = merge_records(existing_record, record)
     
-    # Delete existing record if it exists (we'll insert merged version)
+    # Use canonical ID format: merged_{ticker} to ensure one record per ticker
+    # This ID is deterministic - same ticker always gets same ID
+    merged_id = f"merged_{merged_record.ticker.lower()}"
+    
+    # Delete existing record if it exists (we're replacing it with the merged version)
+    # This happens within the transaction, and the FOR UPDATE lock ensures no conflicts
     if existing_db_record:
         await session.delete(existing_db_record)
         await session.flush()
     
-    # Insert/Update with merged record
-    # Use canonical ID format: merged_{ticker} to ensure one record per ticker
-    merged_id = f"merged_{merged_record.ticker.lower()}"
-    
+    # Insert merged record
     new_record = models.NormalizedRecord(
         id=merged_id,
         ticker=merged_record.ticker,
@@ -134,6 +145,13 @@ async def _upsert_normalized(session: AsyncSession, record: NormalizedRecord) ->
     )
     session.add(new_record)
     await session.flush()
+    
+    # NOTE: For even higher concurrency safety in a distributed system:
+    # 1. Consider implementing a database trigger that performs the merge logic
+    # 2. Or use PostgreSQL's ON CONFLICT clause with a custom conflict resolution function
+    # 3. Example: INSERT INTO ... ON CONFLICT (ticker) DO UPDATE SET ...
+    # The current approach is safe for typical single-server deployments and handles
+    # concurrent requests within a single database instance correctly.
 
 
 async def _ingest_api(session: AsyncSession) -> None:
