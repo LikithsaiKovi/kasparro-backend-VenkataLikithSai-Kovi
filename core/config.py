@@ -1,5 +1,5 @@
 from functools import lru_cache
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings
 
 
@@ -22,6 +22,13 @@ class Settings(BaseSettings):
         Railway and other platforms often provide postgresql:// URLs,
         but we need postgresql+asyncpg:// for async operations.
         """
+        if not v or v.strip() == "":
+            raise ValueError(
+                "DATABASE_URL environment variable is required but not set. "
+                "Please set it to your PostgreSQL connection string. "
+                "For Railway, use the DATABASE_URL from your PostgreSQL service."
+            )
+        
         if v.startswith("postgresql://") and "+asyncpg" not in v:
             # Convert postgresql:// to postgresql+asyncpg://
             v = v.replace("postgresql://", "postgresql+asyncpg://", 1)

@@ -102,3 +102,6 @@ def merge_records(existing: Optional[NormalizedRecord], incoming: NormalizedReco
         created_at=merged_created_at,
         ingested_at=merged_ingested_at,
     )
+
+
+

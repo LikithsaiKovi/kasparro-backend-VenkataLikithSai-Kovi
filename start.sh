@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# start.sh - launches ETL runner in background then FastAPI app
+# start.sh - Initialize database and launch FastAPI app with integrated ETL scheduler
 
 echo "Starting Kasparro ETL Backend..."
 
@@ -21,17 +21,13 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
             sleep 2
         else
             echo "Warning: Database initialization failed after $MAX_RETRIES attempts"
-            echo "Continuing anyway - API will start but ETL may fail"
+            echo "Continuing anyway - API will start but may have issues"
         fi
     fi
 done
 
-# Start ETL runner in the background (don't fail if this fails)
-echo "Starting ETL runner in background..."
-python -m ingestion.runner --once || echo "Warning: ETL runner failed, continuing..." &
-
-# Start FastAPI via uvicorn
-echo "Starting FastAPI server..."
+# Start FastAPI via uvicorn (ETL scheduler is integrated into the app)
+echo "Starting FastAPI server with integrated ETL scheduler..."
 exec uvicorn api.main:app --host 0.0.0.0 --port ${PORT:-8000}
 
 
