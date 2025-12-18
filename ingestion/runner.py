@@ -154,9 +154,9 @@ async def _upsert_normalized(session: AsyncSession, record: NormalizedRecord) ->
 
 
 async def _ingest_api(session: AsyncSession) -> None:
-    checkpoint = await _get_checkpoint(session, "api")
+    checkpoint = await _get_checkpoint(session, "coinpaprika")
     last_id = checkpoint.last_id
-    run = await _record_run(session, "api", status="running")
+    run = await _record_run(session, "coinpaprika", status="running")
 
     try:
         raw_payloads = await fetch_api_records(settings.api_source_key, last_id=last_id)
@@ -179,7 +179,7 @@ async def _ingest_api(session: AsyncSession) -> None:
                 logger.exception("API record failed validation/insert")
                 failed += 1
 
-        await _update_checkpoint(session, "api", latest_seen)
+        await _update_checkpoint(session, "coinpaprika", latest_seen)
         await _finalize_run(session, run, status="success", processed=processed, failed=failed)
     except Exception as exc:
         await _finalize_run(session, run, status="failure", processed=0, failed=1, message=str(exc))

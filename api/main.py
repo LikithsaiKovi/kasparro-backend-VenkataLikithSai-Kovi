@@ -63,7 +63,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Kasparro Backend & ETL",
-    description="Cryptocurrency ETL Pipeline with CoinPaprika and CoinGecko APIs",
+    description="Cryptocurrency ETL Pipeline using the CoinPaprika API",
     version="1.1.2",
     lifespan=lifespan
 )
@@ -83,7 +83,7 @@ async def root():
             "docs": "/docs",
             "openapi": "/openapi.json"
         },
-        "description": "Cryptocurrency ETL Pipeline ingesting data from CoinPaprika, CoinGecko, and CSV sources",
+        "description": "Cryptocurrency ETL Pipeline ingesting data from the CoinPaprika API",
         "etl_schedule": "Every hour (automated)"
     }
 
