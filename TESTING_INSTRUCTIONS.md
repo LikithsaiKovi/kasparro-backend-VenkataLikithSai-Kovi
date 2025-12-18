@@ -32,7 +32,6 @@ This guide will help you test the Kasparro backend manually using the Windows Co
    ```
    DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/postgres
    API_SOURCE_KEY=REPLACE_ME
-   CSV_PATH=/data/sample.csv
    LOG_LEVEL=INFO
    ```
 
@@ -141,7 +140,6 @@ pip install -r requirements.txt
    ```cmd
    set DATABASE_URL=postgresql+asyncpg://postgres:your_password@localhost:5432/kasparro_db
    set API_SOURCE_KEY=REPLACE_ME
-   set CSV_PATH=data\sample.csv
    set LOG_LEVEL=INFO
    ```
 
@@ -171,7 +169,6 @@ python -m ingestion.runner --once
 
 This will:
 - Fetch data from CoinPaprika API
-- Process CSV file
 - Store data in database
 
 ### Step 5: Start API Server
@@ -205,8 +202,7 @@ Use this checklist to verify all functionality:
 
 ### Data Verification
 - [ ] Data appears in `/data` endpoint after ETL runs
-- [ ] CSV data is present (source=csv)
-- [ ] API data is present (source=api or coinpaprika)
+- [ ] API data is present (source=coinpaprika)
 - [ ] Tickers are normalized (uppercase)
 - [ ] Prices are displayed correctly
 

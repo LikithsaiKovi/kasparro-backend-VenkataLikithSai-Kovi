@@ -1,6 +1,6 @@
 # Kasparro Backend & ETL System
 
-A production-ready ETL pipeline and REST API built with FastAPI, async SQLAlchemy, and PostgreSQL. The system ingests cryptocurrency data from multiple sources (CoinPaprika API, CoinGecko API, and CSV), performs intelligent data normalization with ticker unification, and exposes queryable endpoints with comprehensive metadata.
+A production-ready ETL pipeline and REST API built with FastAPI, async SQLAlchemy, and PostgreSQL. The system ingests cryptocurrency data from the CoinPaprika API, performs intelligent data normalization with ticker unification, and exposes queryable endpoints with comprehensive metadata.
 
 **Version:** 1.1.2  
 **Status:** ✅ Live on Railway  
@@ -208,7 +208,7 @@ curl http://localhost:8000/data?limit=5
 ```
 1. ETL Trigger (Scheduled/Manual)
    ↓
-2. EXTRACT: Fetch from CoinPaprika API, CoinGecko API, CSV
+2. EXTRACT: Fetch from CoinPaprika API
    ↓
 3. TRANSFORM: 
    - Validate with Pydantic schemas
@@ -315,7 +315,7 @@ Data Sources (APIs + CSV) → ETL Pipeline → PostgreSQL → REST API → Clien
 ```
 
 **Key Features:**
-- **Multi-source ingestion**: CoinPaprika API, CoinGecko API, CSV files
+- **API ingestion**: CoinPaprika API
 - **Intelligent merging**: Combines data from all sources into unified records
 - **Data quality**: Ticker normalization (uppercase), price precision (8 decimals)
 - **Automated scheduling**: ETL runs every hour via APScheduler
@@ -417,10 +417,9 @@ curl https://kasparro-backend-venkatalikithsai-kovi-production.up.railway.app/st
 
 ## 🗄️ Database Schema
 
-**5 Tables:**
+**Tables:**
 - `normalized_records` - Unified cryptocurrency data (one record per ticker)
 - `raw_api_records` - Original API payloads (audit trail)
-- `raw_csv_records` - Original CSV data (audit trail)
 - `etl_checkpoints` - Incremental processing state
 - `etl_runs` - ETL execution history
 
@@ -464,7 +463,7 @@ The system uses sensible defaults. Only `DATABASE_URL` is required:
 |----------|----------|---------|-------------|
 | `DATABASE_URL` | Yes* | - | PostgreSQL connection string |
 | `API_SOURCE_KEY` | No | `REPLACE_ME` | API key (optional) |
-| `CSV_PATH` | No | `data/sample.csv` | CSV file path |
+
 | `LOG_LEVEL` | No | `INFO` | Logging level |
 
 *Automatically configured in Docker Compose and Railway

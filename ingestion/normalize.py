@@ -1,9 +1,9 @@
 """
-Best-practice normalization module for merging multi-source cryptocurrency data.
+Normalization module for merging cryptocurrency data.
 
-This module implements intelligent field merging with provenance tracking,
-allowing multiple sources (CoinPaprika, CoinGecko, CSV) to contribute to
-a single enriched record while preserving source information.
+This module implements intelligent field merging designed for CoinPaprika as the
+primary source. It remains generic enough to merge future sources if added,
+but current deployment uses CoinPaprika only.
 """
 from datetime import datetime
 from typing import Dict, Any, Optional
@@ -37,11 +37,9 @@ def merge_records(existing: Optional[NormalizedRecord], incoming: NormalizedReco
         # First record for this ticker - use incoming as-is
         return incoming
     
-    # Source priority for canonical fields (name)
+    # Source priority for canonical fields (name) — CoinPaprika only at present
     SOURCE_PRIORITY = {
-        "coinpaprika": 1,
-        "coingecko": 2,
-        "csv": 3
+      "coinpaprika": 1,
     }
     
     # Determine which source has higher priority
