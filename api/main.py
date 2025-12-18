@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
-from api.routes import data, health, stats, trigger
+from api.routes import data, health, stats, trigger, admin
 from core.logger import configure_logging
 from core.config import get_settings
 
@@ -91,6 +91,7 @@ app.include_router(data.router, prefix="/data", tags=["data"])
 app.include_router(health.router, prefix="/health", tags=["health"])
 app.include_router(stats.router, prefix="/stats", tags=["stats"])
 app.include_router(trigger.router, prefix="/trigger-etl", tags=["etl"])
+app.include_router(admin.router, prefix="/admin", tags=["admin"])
 
 
 

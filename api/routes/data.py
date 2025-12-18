@@ -15,7 +15,7 @@ router = APIRouter()
 async def list_data(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
-    source: Optional[str] = Query(None, description="Filter by source: coinpaprika, coingecko, or csv"),
+    source: Optional[str] = Query(None, description="Filter by source (e.g., coinpaprika)"),
     ticker: Optional[str] = Query(None, description="Filter by cryptocurrency ticker (e.g., BTC, ETH)"),
     start_date: Optional[datetime] = Query(None),
     end_date: Optional[datetime] = Query(None),
