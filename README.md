@@ -266,7 +266,93 @@ curl http://localhost:8000/data?limit=5
 
 ---
 
-## 📊 API Endpoints
+## � Normalization & Data Quality
+
+### When Does Normalization Happen?
+
+**Normalization occurs automatically during the ETL process**, not through manual API operations. Here's the workflow:
+
+1. **ETL Trigger** (Automated hourly or manual via `POST /trigger-etl`)
+2. **Extract**: Fetch raw data from CoinPaprika API
+3. **Transform**: Validate and standardize each record
+4. **Normalize**: Intelligent merging by ticker symbol
+5. **Load**: Store in database (one unified record per ticker)
+
+**Important**: There are no public `POST` or `PATCH` endpoints to manually create/update cryptocurrency records. All data ingestion happens through the ETL pipeline, ensuring consistency and data quality.
+
+### Normalization Method: Timestamp-Based Intelligent Merging
+
+The system uses a **best-practice merging strategy** that intelligently combines data from multiple ETL runs to maintain accurate, up-to-date records:
+
+#### Strategy Overview
+- **One record per ticker**: BTC, ETH, etc. each have a single unified record
+- **Volatile fields**: Use most recent data (by timestamp)
+- **Static fields**: Use canonical source priority
+- **Deduplication**: Prevents duplicate tickers across sources
+
+#### Field-Specific Rules
+
+**Volatile Fields (Time-Sensitive Market Data):**
+- `price_usd` - Current price
+- `market_cap_usd` - Market capitalization
+- `volume_24h_usd` - 24-hour trading volume
+- `percent_change_24h` - 24-hour price change
+
+**Strategy**: Always use the **most recent value** based on `created_at` timestamp. This ensures API consumers always get the latest market data.
+
+**Static Fields (Canonical Information):**
+- `name` - Cryptocurrency name (e.g., "Bitcoin")
+- `ticker` - Symbol (e.g., "BTC")
+
+**Strategy**: Use **source priority** (CoinPaprika preferred) and normalize format (uppercase tickers).
+
+#### Example: How Merging Works
+
+```
+Scenario: BTC already exists in DB from 1 hour ago, new data arrives from ETL
+
+Existing Record (1 hour old):
+  ticker: BTC
+  price_usd: 45000.00
+  name: Bitcoin
+  created_at: 2025-12-18T10:00:00Z
+  source: coinpaprika
+
+Incoming Record (new):
+  ticker: BTC
+  price_usd: 45500.00
+  name: Bitcoin
+  created_at: 2025-12-18T11:00:00Z
+  source: coinpaprika
+
+Merged Result:
+  ticker: BTC
+  price_usd: 45500.00        ← Newer price wins
+  name: Bitcoin               ← Canonical source preserved
+  created_at: 2025-12-18T11:00:00Z  ← Most recent timestamp
+  source: coinpaprika
+```
+
+#### Data Quality Guarantees
+
+1. **Ticker Normalization**: All tickers converted to uppercase (btc → BTC)
+2. **Price Precision**: 8 decimal places for accurate cryptocurrency values
+3. **Idempotent Operations**: Safe to re-run ETL without duplicates
+4. **Audit Trail**: Raw API responses preserved in `raw_api_records` table
+5. **Incremental Processing**: Checkpoints track last processed record per source
+
+#### For Recruiters: Why This Approach?
+
+This normalization strategy demonstrates:
+- **Production-ready data engineering**: Handles real-world scenarios like multiple data sources and updates
+- **Time-series data management**: Respects temporal ordering for volatile financial data
+- **Defensive programming**: Prevents duplicates, handles missing fields, preserves audit trails
+- **Scalability**: Architecture supports adding new data sources with minimal changes
+- **Best practices**: Follows industry standards for ETL pipelines (Extract → Transform → Normalize → Load)
+
+---
+
+## �📊 API Endpoints
 
 All endpoints are documented interactively at `/docs` (Swagger UI)
 
