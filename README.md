@@ -548,13 +548,37 @@ The system uses sensible defaults. Only `DATABASE_URL` is required:
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `DATABASE_URL` | Yes* | - | PostgreSQL connection string |
-| `API_SOURCE_KEY` | No | `REPLACE_ME` | API key (optional) |
-
-| `LOG_LEVEL` | No | `INFO` | Logging level |
+| `API_SOURCE_KEY` | No | `REPLACE_ME` | CoinPaprika API key (optional - free tier works without key) |
+| `SCHEDULER_TOKEN` | No | - | Security token to protect ETL trigger endpoint |
+| `LOG_LEVEL` | No | `INFO` | Logging level (INFO, DEBUG, WARNING, ERROR) |
 
 *Automatically configured in Docker Compose and Railway
 
 **For Docker Compose:** Environment is configured automatically, no `.env` file needed.
+
+### SCHEDULER_TOKEN: Why & How
+
+**Purpose**: Protects your ETL endpoint from unauthorized triggering
+
+**Why It Matters**:
+- **Cost Control**: ETL operations consume API quota and database resources
+- **Security**: Prevents malicious actors from overloading your system with repeated ETL runs
+- **Production Safety**: Ensures only authorized services (e.g., cron jobs, internal tools) can trigger data ingestion
+
+**How It Works**:
+1. Set `SCHEDULER_TOKEN=your_secret_token` in environment variables
+2. To trigger ETL, include header: `X-Scheduler-Token: your_secret_token`
+3. If token is set but missing/incorrect → `401 Unauthorized`
+4. If token is not set → Endpoint is public (development only)
+
+**Example (Postman)**:
+```
+POST /trigger-etl
+Headers:
+  X-Scheduler-Token: your_secret_token
+```
+
+**Best Practice**: Always set this in production deployments (Railway, AWS, etc.)
 
 ---
 
