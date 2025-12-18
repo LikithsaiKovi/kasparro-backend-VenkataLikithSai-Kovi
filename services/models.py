@@ -15,15 +15,6 @@ class RawAPIRecord(Base):
     ingested_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 
-class RawCSVRecord(Base):
-    __tablename__ = "raw_csv_records"
-    
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    external_id = Column(String, unique=True, nullable=False, index=True)
-    payload = Column(Text, nullable=False)  # JSON stored as text
-    ingested_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-
-
 class NormalizedRecord(Base):
     __tablename__ = "normalized_records"
     

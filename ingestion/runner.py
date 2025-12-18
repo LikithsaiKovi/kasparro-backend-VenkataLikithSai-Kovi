@@ -10,8 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.config import get_settings
 from core.logger import configure_logging
 from ingestion.sources.api_source import fetch_api_records
-from ingestion.sources.csv_source import fetch_csv_records
-from ingestion.transform import transform_api_record, transform_csv_record
+from ingestion.transform import transform_api_record
 from ingestion.normalize import merge_records
 from schemas.record import NormalizedRecord
 from services import models
@@ -187,45 +186,11 @@ async def _ingest_api(session: AsyncSession) -> None:
         raise
 
 
-async def _ingest_csv(session: AsyncSession) -> None:
-    checkpoint = await _get_checkpoint(session, "csv")
-    last_id = checkpoint.last_id
-    run = await _record_run(session, "csv", status="running")
-
-    try:
-        raw_payloads = fetch_csv_records(settings.csv_path, last_id=last_id)
-        processed = failed = 0
-        latest_seen = last_id
-
-        for payload in raw_payloads:
-            try:
-                stmt = pg_insert(models.RawCSVRecord).values(
-                    external_id=payload["external_id"],
-                    payload=str(payload),  # Store as string
-                ).on_conflict_do_nothing(index_elements=["external_id"])
-                await session.execute(stmt)
-
-                normalized = transform_csv_record(payload)
-                await _upsert_normalized(session, normalized)
-                processed += 1
-                latest_seen = max(latest_seen or normalized.id, normalized.id)
-            except Exception as exc:
-                logger.exception("CSV record failed validation/insert")
-                failed += 1
-
-        await _update_checkpoint(session, "csv", latest_seen)
-        await _finalize_run(session, run, status="success", processed=processed, failed=failed)
-    except Exception as exc:
-        await _finalize_run(session, run, status="failure", processed=0, failed=1, message=str(exc))
-        raise
-
-
 async def run_once() -> None:
     async for session in get_session():
         await init_db()
         try:
             await _ingest_api(session)
-            await _ingest_csv(session)
             await session.commit()
         except Exception:
             await session.rollback()
@@ -238,7 +203,6 @@ async def main(run_forever: bool = False) -> None:
             await init_db()
             try:
                 await _ingest_api(session)
-                await _ingest_csv(session)
                 await session.commit()
             except Exception:
                 await session.rollback()

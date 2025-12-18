@@ -37,7 +37,7 @@ async def fetch_api_records(api_key: Optional[str] = None, last_id: Optional[str
             data = response.json()
             
             records = []
-            for item in data[:50]:  # Limit to 50 for demo
+            for item in data:
                 external_id = item.get("id", "")
                 records.append({
                     "external_id": external_id,

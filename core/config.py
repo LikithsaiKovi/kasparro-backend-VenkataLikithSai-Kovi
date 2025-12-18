@@ -10,7 +10,6 @@ class Settings(BaseSettings):
         env="DATABASE_URL",
     )
     api_source_key: str = Field(default="REPLACE_ME", env="API_SOURCE_KEY")
-    csv_path: str = Field(default="data/sample.csv", env="CSV_PATH")
     log_level: str = Field(default="INFO", env="LOG_LEVEL")
     scheduler_token: str | None = Field(default=None, env="SCHEDULER_TOKEN")
 

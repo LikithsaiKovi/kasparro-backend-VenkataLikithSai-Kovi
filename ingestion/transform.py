@@ -52,37 +52,4 @@ def transform_api_record(payload: Dict[str, Any]) -> NormalizedRecord:
     )
 
 
-def transform_csv_record(payload: Dict[str, Any]) -> NormalizedRecord:
-    """Transform CSV record to normalized format."""
-    symbol = payload.get("symbol", "")
-    name = payload.get("name", "")
-    
-    ticker = normalize_ticker(symbol)
-    
-    price = normalize_price(payload.get("price_usd", 0))
-    market_cap = payload.get("market_cap_usd")
-    volume_24h = payload.get("volume_24h_usd")
-    percent_change = payload.get("percent_change_24h")
-    
-    created_at = datetime.utcnow()
-    if "created_at" in payload and payload["created_at"]:
-        try:
-            created_at = datetime.fromisoformat(payload["created_at"].replace("Z", "+00:00"))
-            created_at = created_at.replace(tzinfo=None)
-        except:
-            pass
-    
-    external_id = payload.get("external_id", f"csv_{symbol}")
-    
-    return NormalizedRecord(
-        id=external_id,
-        ticker=ticker,
-        name=name,
-        price_usd=price,
-        market_cap_usd=float(market_cap) if market_cap else None,
-        volume_24h_usd=float(volume_24h) if volume_24h else None,
-        percent_change_24h=float(percent_change) if percent_change else None,
-        source="csv",
-        created_at=created_at,
-        ingested_at=datetime.utcnow(),
-    )
+
